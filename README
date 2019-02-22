@@ -1,0 +1,81 @@
+========================================================================
+README for Oculus Rift CV1 camera viewer
+Copyright (c) 2018-2019 Oliver Kreylos
+========================================================================
+
+Overview
+========
+
+The Oculus Rift CV1 camera viewer is a simple graphical utility to view
+a live video feed from an Oculus Rift CV1 tracking camera. It is a pure
+userland application, talking to a camera device through its low-level
+USB interface, and does not require any custom kernel modules.
+
+The Oculus Rift CV1 camera viewer is based on the Vrui VR development
+toolkit, version 4.6-005 or later. It runs on Linux operating systems.
+
+Installation
+============
+
+First, install the Vrui VR development toolkit. It can be downloaded
+from http://idav.ucdavis.edu/~okreylos/ResDev/Vrui/LinkDownload.html .
+The easiest way to install Vrui is to use one of the installation
+scripts found on the download page linked above.
+
+Second, open a terminal window and change into the directory containing
+this README file. Then run the following commands (the "$" indicates a
+terminal prompt and must not be typed in):
+
+$ make
+
+If you installed Vrui into a different location than /usr/local in the
+first step, you need to pass Vrui's location to the make command like
+so:
+
+$ make VRUI_MAKEDIR=<Vrui install directory>/share/make
+
+where <Vrui install directory> is Vrui's installation directory, e.g.,
+/opt/Vrui-4.6 .
+
+Use
+===
+
+Installation creates a "bin" directory inside the directory containing
+this README file, which contains a single executable,
+"OculusRiftCV1CameraViewer." To run the program, open a terminal window,
+change into the directory containing this README file, and run:
+
+$ ./bin/OculusRiftCV1CameraViewer
+
+This will open a window showing a live feed from the first connected
+Oculus Rift CV1 tracking camera. You can pan the image by holding the
+"z" key and moving the mouse, and zoom the image either by holding the
+left mouse button and the "z" key and moving the mouse up or down, or by
+rolling the mouse wheel. You can reset the view by holding the "Windows"
+key and pressing the "Home" key. You can exit from the program by
+pressing the "Esc" key, or by closing the window.
+
+The program understands optional command line arguments:
+
+./bin/OculusRiftCV1CameraViewer [<camera index>] [-auto] [-gain <gain>]
+                                [-exposure <exposure>]
+
+[<camera index>]: Zero-based index of the camera from which to capture
+        video.
+
+[-auto]: Enable automatic exposure and gain control.
+
+[-gain <gain>]: Specify a global gain factor between 0 and 255
+
+[-exposure <exposure>]: Specify an exposure time in multiples of pixel
+        rows. Exposure time can be longer than the height of a video
+        frame (960), which will increase brightness at the cost of frame
+        rate. In IR-dark environments, high exposure times (>10000)
+        might be necessary.
+
+Example command line:
+
+$ ./bin/OculusRiftCV1CameraViewer 1 -gain 128 -exposure 800
+
+will stream video from the second connected camera, using a global gain
+of 128 and an exposure time of 800 lines.
