@@ -58,7 +58,7 @@ class OculusRiftCV1CameraViewer:public Vrui::Application,public GLObject
 	
 	/* Elements: */
 	OculusRiftCV1Camera* camera; // Pointer to a camera object
-	Threads::TripleBuffer<unsigned char*> frames; // Triple buffer of received video frames
+	Threads::TripleBuffer<unsigned char*> frames; // Triple buffer of received video frames, which are new-allocated arrays of 8-bit greyscale pixels
 	unsigned int version; // Version number of currently locked video frame
 	std::string saveFrameNameTemplate; // Printf-style file name template to save video frames
 	unsigned int saveFrameIndex; // Index for next video frame to be saved
@@ -111,8 +111,11 @@ void OculusRiftCV1CameraViewer::streamingCallback(unsigned char* newFramebuffer)
 	{
 	/* Post the new video frame into the triple buffer: */
 	unsigned char*& framebuffer=frames.startNewValue();
+	
+	/* Delete the old frame buffer and store the new one: */
 	delete[] framebuffer;
 	framebuffer=newFramebuffer;
+	
 	frames.postNewValue();
 	
 	/* Wake up the main thread; */
@@ -126,21 +129,30 @@ void OculusRiftCV1CameraViewer::streamingCallback(unsigned char* newFramebuffer)
 			/* Save the new frame as a greyscale PPM file: */
 			char saveFrameName[1024];
 			snprintf(saveFrameName,sizeof(saveFrameName),saveFrameNameTemplate.c_str(),saveFrameIndex);
+			
+			/* Create a new PPM file: */
 			IO::FilePtr ppm=IO::openFile(saveFrameName,IO::File::WriteOnly);
+			
+			/* Write the PPM header: */
 			char headerBuffer[256];
 			unsigned int w=camera->getFrameSize(0);
 			unsigned int h=camera->getFrameSize(1);
 			size_t headerSize=snprintf(headerBuffer,sizeof(headerBuffer),"P5\n%u %u\n255\n",w,h);
 			ppm->write(headerBuffer,headerSize);
+			
+			/* Write the video frame's pixel data: */
 			ppm->write(newFramebuffer,size_t(h)*size_t(w));
 			
+			/* Increment the frame index for the next saved frame: */
 			++saveFrameIndex;
 			}
 		catch(const std::runtime_error& err)
 			{
+			/* Print an error message and carry on: */
 			std::cerr<<"Caught exception "<<err.what()<<" while saving video frame "<<saveFrameIndex<<std::endl;
 			}
 		
+		/* Reset the frame saving flag: */
 		saveNextFrame=false;
 		}
 	}
@@ -204,7 +216,7 @@ OculusRiftCV1CameraViewer::OculusRiftCV1CameraViewer(int& argc,char**& argv)
 	camera->startStreaming(Misc::createFunctionCall(this,&OculusRiftCV1CameraViewer::streamingCallback));
 	
 	/* Set camera's imaging parameters: */
-	camera->setFlip(false,true);
+	camera->setFlip(false,true); // Raw camera image is upside down
 	if(autoExposure)
 		camera->setAutoExposure(true,true,true);
 	if(gain!=~0x0U)
@@ -228,7 +240,10 @@ void OculusRiftCV1CameraViewer::frame(void)
 	{
 	/* Check if there is a new video frame: */
 	if(frames.lockNewValue())
+		{
+		/* Invalidate the texture object holding the currently displayed video frame: */
 		++version;
+		}
 	}
 
 void OculusRiftCV1CameraViewer::display(GLContextData& contextData) const
@@ -245,7 +260,7 @@ void OculusRiftCV1CameraViewer::display(GLContextData& contextData) const
 	unsigned int h=camera->getFrameSize(1);
 	if(dataItem->version!=version)
 		{
-		/* Upload the most recently received texture image: */
+		/* Upload the most recently received video frame into the texture image: */
 		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB,0,GL_RGBA8,w,h,0,GL_LUMINANCE,GL_UNSIGNED_BYTE,frames.getLockedValue());
 		
 		/* Mark the texture object as up-to-date: */
@@ -256,15 +271,22 @@ void OculusRiftCV1CameraViewer::display(GLContextData& contextData) const
 	glDisable(GL_LIGHTING);
 	glEnable(GL_TEXTURE_RECTANGLE_ARB);
 	glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);
+	
+	/* Map the video frame onto a grid of (distorted) tiles to correct the camera's lens distortion: */
 	for(int y=1;y<=64;++y)
 		{
+		/* Draw a row of tiles as a quad strip: */
 		glBegin(GL_QUAD_STRIP);
 		for(int x=0;x<=96;++x)
 			{
+			/* Calculate the original positions of the strip's next top and bottom vertices: */
 			OculusRiftCV1Camera::Point dp1(double(x)*double(w)/96.0,double(y)*double(h)/64.0);
 			OculusRiftCV1Camera::Point dp0(double(x)*double(w)/96.0,double(y-1)*double(h)/64.0);
-			// if(camera->canUndistort(dp1)&&camera->canUndistort(dp0))
+			
+			/* Check if the two vertices can be undistorted: */
+			// if(camera->canUndistort(dp1)&&camera->canUndistort(dp0)) // Actually, don't check
 				{
+				/* Use the original positions as texture coordinate, and the undistorted positions as vertex positions: */
 				glTexCoord(dp1);
 				glVertex(camera->undistort(dp1));
 				glTexCoord(dp0);
@@ -288,15 +310,25 @@ void OculusRiftCV1CameraViewer::resetNavigation(void)
 	Vrui::Scalar h(camera->getFrameSize(1));
 	Vrui::Point center(Math::div2(w),Math::div2(h),0);
 	Vrui::Scalar size(Math::div2(Math::sqrt(w*w+h*h)));
+	
+	/* Make the size a bit larger to account for lens distortion correction: */
+	size*=Vrui::Scalar(1.5);
+	
+	/* Arrange the video texture to fit into the display, with y pointing up: */
 	Vrui::setNavigationTransformation(center,size,Vrui::Vector(0,1,0));
 	}
 
 void OculusRiftCV1CameraViewer::eventCallback(EventID eventId,Vrui::InputDevice::ButtonCallbackData* cbData)
 	{
+	/* Was the button just pressed? */
 	if(cbData->newButtonState)
 		{
+		/* Is this the frame saver tool? */
 		if(eventId==0)
+			{
+			/* Save the next incoming video frame from the background thread: */
 			saveNextFrame=true;
+			}
 		}
 	}
 
@@ -316,4 +348,5 @@ void OculusRiftCV1CameraViewer::initContext(GLContextData& contextData) const
 	glBindTexture(GL_TEXTURE_RECTANGLE_ARB,0);
 	}
 
+/* Run the application: */
 VRUI_APPLICATION_RUN(OculusRiftCV1CameraViewer)
