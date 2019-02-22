@@ -45,7 +45,11 @@ this README file, which contains a single executable,
 "OculusRiftCV1CameraViewer." To run the program, open a terminal window,
 change into the directory containing this README file, and run:
 
-$ ./bin/OculusRiftCV1CameraViewer
+$ sudo ./bin/OculusRiftCV1CameraViewer
+
+The viewer application requires using "sudo" to access the camera's low-
+level USB device. This can be avoided by granting the current console
+user access to the device through a udev rule, see below.
 
 This will open a window showing a live feed from the first connected
 Oculus Rift CV1 tracking camera. You can pan the image by holding the
@@ -57,8 +61,8 @@ pressing the "Esc" key, or by closing the window.
 
 The program understands optional command line arguments:
 
-./bin/OculusRiftCV1CameraViewer [<camera index>] [-auto] [-gain <gain>]
-                                [-exposure <exposure>]
+$ sudo ./bin/OculusRiftCV1CameraViewer [<camera index>] [-auto]
+        [-gain <gain>] [-exposure <exposure>]
 
 [<camera index>]: Zero-based index of the camera from which to capture
         video.
@@ -75,7 +79,33 @@ The program understands optional command line arguments:
 
 Example command line:
 
-$ ./bin/OculusRiftCV1CameraViewer 1 -gain 128 -exposure 800
+$ sudo ./bin/OculusRiftCV1CameraViewer 1 -gain 128 -exposure 800
 
 will stream video from the second connected camera, using a global gain
 of 128 and an exposure time of 800 lines.
+
+Creating a udev rule
+====================
+
+To grant the current console user, i.e., the user currently logged in to
+the desktop session, access to the camera's USB device, create a udev
+rule by creating a new file, "69-OculusRift.rules", in the udev rules
+directory, typically "/etc/udev/rules.d". From a terminal, run
+
+$ sudo cat > /etc/udev/rules.d/69-OculusRift.rules
+
+and then enter exactly the following text into the terminal window:
+
+# Rule for Oculus Rift CV1 head-mounted display and tracking camera
+ACTION=="add", SUBSYSTEMS=="usb", ATTRS{idVendor}=="2833", ATTRS{idProduct}=="0031", TAG+="uaccess"
+ACTION=="add", SUBSYSTEMS=="usb", ATTRS{idVendor}=="2833", ATTRS{idProduct}=="0211", TAG+="uaccess"
+
+When finished, press Ctrl+d to close the newly-created file. Check the
+file's contents by running
+
+$ cat /etc/udev/rules.d/69-OculusRift.rules
+
+and comparing the response to the text above. It must match exactly.
+
+Then unplug and re-plug all Oculus Rift CV1 tracking cameras, and run
+the OculusRiftCV1CameraViewer program without sudo.
