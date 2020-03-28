@@ -21,7 +21,7 @@
 ########################################################################
 
 # Set directory containing Vrui's build system:
-VRUI_MAKEDIR := /usr/local/share/Vrui-4.6/make
+VRUI_MAKEDIR := /usr/local/share/Vrui-5.2/make
 ifdef DEBUG
   VRUI_MAKEDIR := $(VRUI_MAKEDIR)/debug
 endif
