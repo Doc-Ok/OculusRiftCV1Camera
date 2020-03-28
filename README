@@ -1,6 +1,6 @@
 ========================================================================
 README for Oculus Rift CV1 camera viewer
-Copyright (c) 2018-2019 Oliver Kreylos
+Copyright (c) 2018-2020 Oliver Kreylos
 ========================================================================
 
 Overview
@@ -12,7 +12,7 @@ userland application, talking to a camera device through its low-level
 USB interface, and does not require any custom kernel modules.
 
 The Oculus Rift CV1 camera viewer is based on the Vrui VR development
-toolkit, version 4.6-005 or later. It runs on Linux operating systems.
+toolkit, version 5.2-001 or later. It runs on Linux operating systems.
 
 Installation
 ============
@@ -35,7 +35,7 @@ so:
 $ make VRUI_MAKEDIR=<Vrui install directory>/share/make
 
 where <Vrui install directory> is Vrui's installation directory, e.g.,
-/opt/Vrui-4.6 .
+/opt/Vrui-5.2 .
 
 Use
 ===
